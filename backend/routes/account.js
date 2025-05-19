@@ -1,6 +1,6 @@
 const express= require("express");
 const { authMiddleware } = require("../middleware");
-const { Account } = require("../db");
+const { Account, User } = require("../db");
 const { default: mongoose } = require("mongoose");
 
 
@@ -14,20 +14,21 @@ accountRouter.get("/balance",authMiddleware,async (req,res)=>{
     });
 
     res.json({
-        balance:account.balance
+        balance: account.balance
     })
 });
 
 
 
 //transfering money using transaction in databases
+
 accountRouter.post("/transfer",authMiddleware,async(req,res)=>{
     const session=await mongoose.startSession();  //defining a session
 
     session.startTransaction(); //starting a session
     const {amount,to}=req.body;
 //finidng the account sending the money
-    const account=await Account.findOne({userId:req.userId}).session(session);
+    const account=await Account.findOne({userId: req.userId}).session(session);
 
 
     //checks blance
@@ -38,7 +39,7 @@ accountRouter.post("/transfer",authMiddleware,async(req,res)=>{
         });
     }
 //finding the acount which will receive the money
-    const toAccount=await Account.findOne({userId:to}).session(session);
+    const toAccount=await Account.findOne({userId: to}).session(session);
     if(!toAccount){
         await session.abortTransaction();
         return res.status(400).json({
@@ -59,10 +60,22 @@ accountRouter.post("/transfer",authMiddleware,async(req,res)=>{
 
     //credit
     await Account.updateOne({
-        userId:req.userId
+        userId: to
     },{$inc:{balance:amount}}).session(session);
 
-    //commiting th etransaction becuase wont work without our transaction in db is comiited
+
+    await User.updateOne(
+        { _id: req.userId },
+        { $inc: { balance: -amount } }
+    ).session(session);
+
+    // Update User balance for receiver in Users collection
+    await User.updateOne(
+        { _id: to },
+        { $inc: { balance: amount } }
+    ).session(session);
+
+    //commiting the transaction becuase wont work without our transaction in db is comiited
     await session.commitTransaction();
     res.json({
         message:"Transaction completed successfully "

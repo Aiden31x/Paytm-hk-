@@ -2,7 +2,7 @@ const express=require("express");
 const zod=require("zod");
 const jwt=require("jsonwebtoken");
 const JWT_SECRET=require("./config");
-const { User } = require("../db");
+const { User, Account } = require("../db");
 const { authMiddleware } = require("../middleware");
 
 const userRouter=express.Router();
@@ -11,7 +11,7 @@ const userRouter=express.Router();
 
 //zod schema
 const signupSchema = zod.object({
-    username: zod.string(),
+    userName: zod.string(),
     password: zod.string(),
     firstName: zod.string(),
     lastName: zod.string()
@@ -31,7 +31,7 @@ userRouter.post("/signup", async (req, res) => {
 
     //checks if existing user exists or not
     const existingUser = await User.findOne({
-        username: body.username
+        userName: body.userName
     });
 
     if (existingUser) {
@@ -48,6 +48,16 @@ userRouter.post("/signup", async (req, res) => {
 
     //creates the User
     const dbUser = await User.create(userWithBalance);
+    
+
+    const userId = dbUser._id;
+
+    
+    //creates Account details
+    await Account.create({
+        userId,
+        balance: randomBalance
+    })
 
     //creates the jsonwebtoken and as its secret is given it cannot be decoded without it 
     const token = jwt.sign({

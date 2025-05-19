@@ -30,6 +30,11 @@ const userSchema= new mongoose.Schema({
         trim:true,
         maxLength:30
     },
+    balance: {
+        type: Number,
+        required: true,
+        default: 0 // Or any value you prefer
+    }
 })
 
 //defingin schema for the account 
